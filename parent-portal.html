@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal da Família — KidsLearnCode (Ilha Lua)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Nunito:wght@500;600;700;800;900&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/parent-portal.css">
+  <link rel="stylesheet" href="css/parent-dashboard.css">
+</head>
+<body class="parent-portal-body">
+  <div class="parent-portal-container">
+    <header class="parent-header">
+      <div class="parent-brand">
+        <div class="parent-brand-icon">
+          <svg viewBox="0 0 24 24" class="ui-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="parent-title">Portal da Família</h1>
+          <p class="parent-subtitle">KidsLearnCode — Ilha Lua</p>
+        </div>
+      </div>
+      <div id="parent-auth-header-actions" class="parent-header-actions"></div>
+    </header>
+
+    <div id="portal-status-alert" class="portal-alert" style="display: none;"></div>
+
+    <!-- SEÇÃO 1: FLUXO DE VERIFICAÇÃO PARENTAL (Via Link de E-mail) -->
+    <main id="section-verification" class="portal-card" style="display: none;">
+      <div class="portal-ribbon">
+        <span id="verification-step-indicator">Etapa 1 de 3: Identificação do Responsável</span>
+      </div>
+
+      <!-- Passo 1: Identificação -->
+      <div id="verify-step-1" class="verify-step">
+        <h2 class="portal-step-title">Autorização de Acesso ao Jogo</h2>
+        <p class="portal-step-desc">
+          Olá! O aventureiro(a) <strong id="verify-child-name" style="color: var(--animal-primary-dark, #0f8e83);">...</strong> solicitou cadastro seguro na Ilha Lua.
+          Conforme o Estatuto da Criança e do Adolescente (ECA), precisamos da autorização do responsável legal.
+        </p>
+        <div class="portal-form-group">
+          <label for="parent-full-name">Nome Completo do Responsável</label>
+          <input type="text" id="parent-full-name" placeholder="Ex: Maria dos Santos" class="portal-input">
+        </div>
+        <div class="portal-form-group">
+          <label for="parent-doc-type">Tipo de Documento para Conferência</label>
+          <select id="parent-doc-type" class="portal-input">
+            <option value="rg">RG (Carteira de Identidade)</option>
+            <option value="cnh">CNH (Carteira de Habilitação)</option>
+            <option value="passaporte">Passaporte</option>
+          </select>
+        </div>
+        <div class="portal-form-group">
+          <label for="parent-new-password">Crie uma Senha para o seu Painel de Pais</label>
+          <input type="password" id="parent-new-password" placeholder="Mínimo de 6 caracteres" class="portal-input">
+          <span class="portal-input-hint">Com esta senha você poderá acessar o Painel de Controle a qualquer momento.</span>
+        </div>
+        <button type="button" id="btn-goto-step-2" class="portal-btn portal-btn-primary">
+          <span>Prosseguir para Conferência de Documento</span>
+          <svg viewBox="0 0 24 24" class="ui-icon" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+      </div>
+
+      <!-- Passo 2: Documento 100% no Aparelho (Zero Armazenamento) -->
+      <div id="verify-step-2" class="verify-step" style="display: none;">
+        <h2 class="portal-step-title">Conferência Privada de Documento</h2>
+        <div class="portal-privacy-notice">
+          <svg viewBox="0 0 24 24" class="ui-icon notice-icon" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <p>
+            <strong>Sua privacidade é nossa prioridade:</strong> a conferência do documento é feita de forma segura e automática diretamente no seu aparelho. Nenhuma foto do seu documento é guardada em nossos servidores.
+          </p>
+        </div>
+        <div class="portal-upload-box">
+          <input type="file" id="doc-file-input" accept="image/*" class="portal-file-hidden">
+          <label for="doc-file-input" class="portal-upload-label" id="doc-upload-label">
+            <svg viewBox="0 0 24 24" class="ui-icon upload-icon" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <span id="doc-upload-prompt">Clique ou toque para tirar foto ou selecionar a foto do documento</span>
+            <span class="portal-upload-subtext">Formatos suportados: JPG, PNG ou foto da câmera</span>
+          </label>
+          <div id="doc-preview-wrapper" class="doc-preview-wrapper" style="display: none;">
+            <canvas id="doc-preview-canvas" class="doc-preview-canvas"></canvas>
+            <div id="doc-validation-badge" class="doc-validation-badge">
+              <svg viewBox="0 0 24 24" class="ui-icon" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>Documento conferido no aparelho</span>
+            </div>
+          </div>
+        </div>
+        <div class="portal-btn-row">
+          <button type="button" id="btn-back-to-step-1" class="portal-btn portal-btn-wood">Voltar</button>
+          <button type="button" id="btn-goto-step-3" class="portal-btn portal-btn-primary" disabled>
+            <span>Prosseguir para Reconhecimento Facial</span>
+            <svg viewBox="0 0 24 24" class="ui-icon" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Passo 3: Reconhecimento Facial Gratuito -->
+      <div id="verify-step-3" class="verify-step" style="display: none;">
+        <h2 class="portal-step-title">Reconhecimento Facial do Responsável</h2>
+        <p class="portal-step-desc">
+          Posicione seu rosto dentro da moldura oval da câmera para atestar a maioridade. A análise roda 100% no seu navegador de forma gratuita e privada.
+        </p>
+        <div class="camera-scanner-container">
+          <video id="camera-stream" autoplay playsinline muted class="camera-video"></video>
+          <div class="face-oval-guide" id="face-oval-guide"><div class="scanner-pulse-ring"></div></div>
+          <div id="camera-feedback-badge" class="camera-feedback-badge">Centralize seu rosto na moldura oval</div>
+        </div>
+        <div class="portal-btn-row">
+          <button type="button" id="btn-back-to-step-2" class="portal-btn portal-btn-wood">Voltar</button>
+          <button type="button" id="btn-confirm-verification" class="portal-btn portal-btn-primary" disabled>
+            <span>Concluir Verificação e Liberar Acesso</span>
+            <svg viewBox="0 0 24 24" class="ui-icon" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Passo 4: Confirmação OK -->
+      <div id="verify-step-success" class="verify-step" style="display: none; text-align: center;">
+        <div class="success-badge-circle">
+          <svg viewBox="0 0 24 24" class="success-svg" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <h2 class="success-title">OK! Verificação Concluída!</h2>
+        <p class="success-desc">
+          A maioridade do responsável foi confirmada com sucesso. A conta do aventureiro <strong id="success-child-name" style="color: var(--animal-primary-dark, #0f8e83);">...</strong> já está liberada para explorar a Ilha Lua com segurança.
+        </p>
+        <button type="button" id="btn-open-dashboard" class="portal-btn portal-btn-primary" style="margin: 20px auto 0;">
+          <span>Acessar Painel de Controle dos Pais</span>
+          <svg viewBox="0 0 24 24" class="ui-icon" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+      </div>
+    </main>
+
+    <!-- SEÇÃO 2: LOGIN DO RESPONSÁVEL -->
+    <main id="section-parent-login" class="portal-card" style="display: none; max-width: 480px; margin: 0 auto;">
+      <div class="portal-ribbon"><span>Acesso do Responsável</span></div>
+      <h2 class="portal-step-title" style="text-align: center;">Entrar no Painel dos Pais</h2>
+      <p class="portal-step-desc" style="text-align: center;">Acompanhe a evolução educativa do seu filho(a) e configure o tempo de uso diário.</p>
+      <form id="parent-login-form" class="portal-form">
+        <div class="portal-form-group">
+          <label for="login-parent-email">E-mail do Responsável</label>
+          <input type="email" id="login-parent-email" placeholder="seu-email@exemplo.com" required class="portal-input">
+        </div>
+        <div class="portal-form-group">
+          <label for="login-parent-password">Senha</label>
+          <input type="password" id="login-parent-password" placeholder="Sua senha cadastrada" required class="portal-input">
+        </div>
+        <button type="submit" id="btn-parent-login" class="portal-btn portal-btn-primary" style="width: 100%;">
+          <span>Entrar no Painel</span>
+          <svg viewBox="0 0 24 24" class="ui-icon" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+      </form>
+    </main>
+
+    <!-- SEÇÃO 3: DASHBOARD DOS PAIS -->
+    <main id="section-dashboard" class="portal-dashboard" style="display: none;">
+      <div class="dashboard-grid">
+        <!-- Cartão 1: Perfil do Aventureiro -->
+        <section class="portal-card">
+          <div class="portal-ribbon"><span>Aventureiro</span></div>
+          <div class="child-profile-summary">
+            <div class="child-avatar-frame">
+              <svg viewBox="0 0 24 24" class="avatar-svg" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </div>
+            <div>
+              <h3 id="dash-child-nickname" class="child-name">Aventureiro</h3>
+              <p id="dash-child-email" class="child-email">aventureiro@kidslearncode.local</p>
+              <div class="child-badges-row">
+                <span id="dash-child-level" class="pill-badge badge-teal">Nível 1</span>
+                <span id="dash-child-xp" class="pill-badge badge-wood">0 XP</span>
+                <span id="dash-child-gold" class="pill-badge badge-gold">100 Moedas</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Cartão 2: Tempo Limite Diário -->
+        <section class="portal-card">
+          <div class="portal-ribbon"><span>Controle Parental de Uso</span></div>
+          <h3 class="portal-card-heading">Tempo Limite por Dia</h3>
+          <p class="portal-card-sub">O jogo salva o progresso e pausa suavemente quando o tempo é atingido.</p>
+          <div class="time-limit-selector" id="time-limit-selector">
+            <button type="button" class="btn-time-pill" data-minutes="30">30 min</button>
+            <button type="button" class="btn-time-pill" data-minutes="60">1 hr</button>
+            <button type="button" class="btn-time-pill" data-minutes="120">2 hrs</button>
+            <button type="button" class="btn-time-pill" data-minutes="240">4 hrs</button>
+            <button type="button" class="btn-time-pill" data-minutes="unlimited">Ilimitado</button>
+          </div>
+          <div class="today-usage-gauge">
+            <div class="usage-label-row">
+              <span>Uso no dia de hoje:</span>
+              <strong id="dash-today-usage-text">0 min jogados</strong>
+            </div>
+            <div class="usage-progress-bar">
+              <div id="dash-usage-progress-fill" class="usage-progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+          <button type="button" id="btn-save-time-limit" class="portal-btn portal-btn-primary" style="margin-top: 14px; width: 100%;">
+            <span>Salvar Limite de Uso</span>
+          </button>
+        </section>
+      </div>
+
+      <!-- Cartão 3: Progresso Pedagógico -->
+      <section class="portal-card" style="margin-top: 20px;">
+        <div class="portal-ribbon"><span>Evolução Pedagógica</span></div>
+        <div class="learning-header-row">
+          <div>
+            <h3 class="portal-card-heading">Desafios de Código e Computação</h3>
+            <p class="portal-card-sub">Conceitos de lógica de programação assimilados na Ilha Lua</p>
+          </div>
+          <div class="learning-counter-badge">
+            <span id="dash-lessons-completed-count">0</span> de <span id="dash-lessons-total-count">25</span> lições
+          </div>
+        </div>
+        <div class="learning-progress-track">
+          <div id="dash-learning-progress-fill" class="learning-progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="concepts-grid" id="dash-concepts-container"></div>
+        <h4 class="portal-section-subheading">Itens & Receitas Desbloqueados pelo Aprendizado</h4>
+        <div class="unlocked-assets-grid" id="dash-unlocked-assets"></div>
+      </section>
+
+      <!-- Cartão 4: Dragões -->
+      <section class="portal-card" style="margin-top: 20px;">
+        <div class="portal-ribbon"><span>Bolsa de Dragões</span></div>
+        <h3 class="portal-card-heading">Dragões Companheiros Recrutados</h3>
+        <p class="portal-card-sub">Monstros companheiros que o aventureiro treinou e evoluiu pelo mapa</p>
+        <div class="dragons-portal-grid" id="dash-dragons-container"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="src/ui/ParentPortal.js"></script>
+</body>
+</html>

@@ -32,32 +32,47 @@ export class Mailer {
     }
   }
 
-  async sendConfirmationEmail({ email, token, nickname = 'Aventureiro', isMinor = false, parentEmail = null }) {
-    const confirmationLink = `${this.publicUrl}/api/auth/confirm-email?token=${token}`;
+  async sendConfirmationEmail({ email, token, nickname = 'Aventureiro', isMinor = false, parentEmail = null, publicUrl = null }) {
+    const rootUrl = (publicUrl || this.publicUrl || 'http://localhost:8080').replace(/\/$/, '');
+    const confirmationLink = isMinor 
+      ? `${rootUrl}/parent-portal.html?action=verify&token=${encodeURIComponent(token)}`
+      : `${rootUrl}/api/auth/confirm-email?token=${encodeURIComponent(token)}`;
     const targetEmail = isMinor && parentEmail ? parentEmail : email;
 
     const subject = isMinor 
-      ? `[Ilha Lua] Autorização de Acesso para o Aventureiro ${nickname}` 
+      ? `[Ilha Lua] Autorização e Verificação Parental para o Aventureiro ${nickname}` 
       : `[Ilha Lua] Confirme seu cadastro no KidsLearnCode!`;
 
     const html = `
       <div style="font-family: 'Nunito', Arial, sans-serif; background-color: #f8f8f0; padding: 30px; color: #794f27;">
         <div style="max-width: 540px; margin: 0 auto; background: #fdfbf7; border: 2px solid #7a583e; border-radius: 20px; padding: 24px; box-shadow: 0 6px 0 #5c3c26;">
-          <h2 style="color: #794f27; margin-top: 0; text-align: center; font-size: 24px;">Bem-vindo à Ilha Lua!</h2>
-          <p style="font-size: 16px; line-height: 1.6;">Olá, <strong>${nickname}</strong>!</p>
+          <h2 style="color: #794f27; margin-top: 0; text-align: center; font-size: 24px;">
+            ${isMinor ? 'Portal da Família — Ilha Lua' : 'Bem-vindo à Ilha Lua!'}
+          </h2>
+          <p style="font-size: 16px; line-height: 1.6;">
+            ${isMinor 
+              ? `Olá! O aventureiro(a) <strong>${nickname}</strong> solicitou cadastro na plataforma educativa <strong>KidsLearnCode (Ilha Lua)</strong>.`
+              : `Olá, <strong>${nickname}</strong>!`
+            }
+          </p>
           ${isMinor ? `
-            <div style="background: #e6f9f6; border-left: 4px solid #19c8b9; padding: 12px; border-radius: 8px; margin: 16px 0;">
-              <p style="margin: 0; font-size: 14px; color: #0f8e83;">
-                <strong>Aviso aos Pais/Responsáveis:</strong> Este e-mail foi solicitado para liberar o acesso educativo e seguro da criança à plataforma interativa KidsLearnCode, em total conformidade com o ECA.
+            <div style="background: #e6f9f6; border-left: 4px solid #19c8b9; padding: 14px; border-radius: 8px; margin: 16px 0;">
+              <p style="margin: 0; font-size: 14px; color: #0f8e83; line-height: 1.5;">
+                <strong>Segurança e Privacidade em Primeiro Lugar:</strong> Em conformidade com o Estatuto da Criança e do Adolescente (ECA) e a LGPD, o acesso de menores exige autorização do responsável legal.
+                A conferência do documento é feita de forma 100% privada diretamente no seu aparelho, sem armazenar fotos em servidores.
               </p>
             </div>
-          ` : ''}
-          <p style="font-size: 15px; line-height: 1.6;">
-            Clique no botão abaixo para ativar a sua jornada e salvar seus mapas, construções e dragões no mundo:
-          </p>
+            <p style="font-size: 15px; line-height: 1.6;">
+              Clique no botão abaixo para concluir a autorização do seu filho(a) e definir o limite de uso diário no seu Painel de Pais:
+            </p>
+          ` : `
+            <p style="font-size: 15px; line-height: 1.6;">
+              Clique no botão abaixo para ativar a sua jornada e salvar seus mapas, construções e dragões no mundo:
+            </p>
+          `}
           <div style="text-align: center; margin: 28px 0;">
             <a href="${confirmationLink}" style="background-color: #19c8b9; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 16px; font-weight: bold; border-radius: 50px; display: inline-block; box-shadow: 0 4px 0 #0f8e83;">
-              Ativar Minha Conta
+              ${isMinor ? 'Autorizar e Acessar Painel dos Pais' : 'Ativar Minha Conta'}
             </a>
           </div>
           <p style="font-size: 12px; color: #8a7b66; text-align: center;">
@@ -160,7 +175,7 @@ export class Mailer {
       }
     } else {
       console.log(`\n======================================================`);
-      console.log(`📧 [SIMULAÇÃO DE E-MAIL - SMTP DESATIVADO]`);
+      console.log(`[SIMULACAO DE E-MAIL - SMTP DESATIVADO]`);
       console.log(`Para: ${to}`);
       console.log(`Assunto: ${subject}`);
       console.log(`Link de Ação: ${directLink}`);

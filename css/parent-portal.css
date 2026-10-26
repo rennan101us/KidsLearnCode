@@ -1,0 +1,166 @@
+/* KidsLearnCode — Parent Portal (Animal Island UI Standard) */
+.parent-portal-body {
+  background-color: var(--animal-bg, #f8f8f0);
+  background-image: radial-gradient(#e5dec9 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+  color: var(--animal-text, #794f27);
+  font-family: var(--animal-font, 'Nunito', 'Outfit', sans-serif);
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+
+.parent-portal-container {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header */
+.parent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--animal-bg-card, #fdfbf7);
+  border: 2px solid var(--animal-border-wood, #7a583e);
+  border-radius: var(--animal-radius-pill, 50px);
+  padding: 12px 24px;
+  box-shadow: 0 4px 0 0 var(--animal-accent-wood, #5c3c26);
+}
+.parent-brand { display: flex; align-items: center; gap: 14px; }
+.parent-brand-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--animal-primary-bg, #e6f9f6);
+  border: 2px solid var(--animal-primary, #19c8b9);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--animal-primary-dark, #0f8e83);
+}
+.parent-title {
+  font-family: var(--animal-font-title, 'Cinzel', serif);
+  font-size: 1.35rem; font-weight: 800; color: var(--animal-text, #794f27); margin: 0; line-height: 1.2;
+}
+.parent-subtitle { font-size: 0.82rem; font-weight: 700; color: var(--animal-text-muted, #8a7b66); margin: 0; }
+
+/* Cards & Ribbons */
+.portal-card {
+  position: relative;
+  background: var(--animal-bg-card, #fdfbf7);
+  border: 2px solid var(--animal-border-wood, #7a583e);
+  border-radius: var(--animal-radius-lg, 24px);
+  padding: 34px 28px 28px;
+  box-shadow: 0 6px 0 0 var(--animal-accent-wood, #5c3c26);
+}
+.portal-ribbon {
+  position: absolute; top: -14px; left: 28px;
+  background: var(--animal-primary, #19c8b9); color: #ffffff;
+  font-weight: 800; font-size: 0.84rem; padding: 6px 18px; border-radius: 50px;
+  box-shadow: 0 3px 0 0 var(--animal-primary-dark, #0f8e83);
+}
+.portal-step-title {
+  font-family: var(--animal-font-title, 'Cinzel', serif);
+  color: var(--animal-text, #794f27); font-size: 1.25rem; font-weight: 700; margin: 0 0 8px;
+}
+.portal-step-desc { font-size: 0.95rem; line-height: 1.55; color: var(--animal-text-body, #725d42); margin: 0 0 20px; }
+
+/* Inputs & Form */
+.portal-form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.portal-form-group label { font-size: 0.86rem; font-weight: 700; color: var(--animal-text, #794f27); }
+.portal-input {
+  width: 100%; box-sizing: border-box; background: var(--animal-bg, #f8f8f0);
+  color: var(--animal-text, #794f27); border: 2px solid var(--animal-border, #c4b89e);
+  border-radius: var(--animal-radius-pill, 50px); padding: 12px 20px;
+  font-family: inherit; font-size: 0.95rem; font-weight: 600; outline: none; transition: border-color 0.2s ease;
+}
+.portal-input:focus { border-color: var(--animal-primary, #19c8b9); }
+.portal-input-hint { font-size: 0.78rem; color: var(--animal-text-muted, #8a7b66); padding: 2px 12px; }
+
+/* 3D Tactile Buttons */
+.portal-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  border-radius: var(--animal-radius-pill, 50px); padding: 12px 28px;
+  font-family: inherit; font-size: 0.95rem; font-weight: 800; cursor: pointer; border: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.portal-btn-primary {
+  background: var(--animal-primary, #19c8b9); color: #ffffff;
+  box-shadow: 0 4px 0 0 var(--animal-primary-dark, #0f8e83);
+}
+.portal-btn-primary:active {
+  transform: translateY(3px); box-shadow: 0 1px 0 0 var(--animal-primary-dark, #0f8e83);
+}
+.portal-btn-wood {
+  background: var(--animal-bg-content, #f7f3df); color: var(--animal-text, #794f27);
+  border: 2px solid var(--animal-border-wood, #7a583e); box-shadow: 0 4px 0 0 var(--animal-accent-wood, #5c3c26);
+}
+.portal-btn-wood:active {
+  transform: translateY(3px); box-shadow: 0 1px 0 0 var(--animal-accent-wood, #5c3c26);
+}
+.portal-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+.portal-btn-row { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+
+/* Privacy Notice */
+.portal-privacy-notice {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--animal-primary-bg, #e6f9f6); border: 2px solid var(--animal-primary, #19c8b9);
+  border-radius: 16px; padding: 14px 18px; margin-bottom: 20px;
+}
+.portal-privacy-notice .notice-icon {
+  width: 22px; height: 22px; color: var(--animal-primary-dark, #0f8e83); flex-shrink: 0;
+}
+.portal-privacy-notice p { margin: 0; font-size: 0.9rem; line-height: 1.5; color: var(--animal-primary-dark, #0f8e83); }
+
+/* Document Upload */
+.portal-file-hidden { display: none; }
+.portal-upload-label {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: var(--animal-bg, #f8f8f0); border: 2px dashed var(--animal-border, #c4b89e);
+  border-radius: 20px; padding: 30px 20px; text-align: center; cursor: pointer; transition: all 0.2s ease;
+}
+.portal-upload-label:hover { border-color: var(--animal-primary, #19c8b9); background: var(--animal-primary-bg, #e6f9f6); }
+.upload-icon { width: 34px; height: 34px; color: var(--animal-text-muted, #8a7b66); }
+.portal-upload-subtext { font-size: 0.78rem; color: var(--animal-text-muted, #8a7b66); }
+.doc-preview-wrapper { margin-top: 16px; text-align: center; }
+.doc-preview-canvas {
+  max-width: 100%; max-height: 260px; border-radius: 14px;
+  border: 2px solid var(--animal-border, #c4b89e); box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.doc-validation-badge {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
+  background: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: 50px;
+  padding: 6px 16px; font-size: 0.85rem; font-weight: 700;
+}
+
+/* Camera Scanner */
+.camera-scanner-container {
+  position: relative; width: 100%; max-width: 440px; height: 320px; margin: 0 auto;
+  border-radius: 24px; overflow: hidden; background: #1e293b;
+  border: 3px solid var(--animal-border-wood, #7a583e);
+  display: flex; align-items: center; justify-content: center;
+}
+.camera-video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.face-oval-guide {
+  position: absolute; width: 170px; height: 230px;
+  border: 3px dashed rgba(255, 255, 255, 0.75); border-radius: 50%;
+  pointer-events: none; display: flex; align-items: center; justify-content: center; transition: border-color 0.3s ease;
+}
+.face-oval-guide.active-detected {
+  border: 3.5px solid var(--animal-primary, #19c8b9); box-shadow: 0 0 20px rgba(25, 200, 185, 0.6);
+}
+.camera-feedback-badge {
+  position: absolute; bottom: 12px; background: rgba(30, 20, 10, 0.8); color: #ffffff;
+  border-radius: 50px; padding: 6px 18px; font-size: 0.82rem; font-weight: 700;
+}
+
+/* Success Screen */
+.success-badge-circle {
+  width: 76px; height: 76px; border-radius: 50%;
+  background: var(--animal-primary-bg, #e6f9f6); border: 3px solid var(--animal-primary, #19c8b9);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+  box-shadow: 0 4px 0 0 var(--animal-primary-dark, #0f8e83);
+}
+.success-svg { width: 40px; height: 40px; color: var(--animal-primary-dark, #0f8e83); }
+.success-title { font-family: var(--animal-font-title, 'Cinzel', serif); font-size: 1.5rem; color: var(--animal-text, #794f27); margin: 0 0 10px; }
+.success-desc { font-size: 1rem; color: var(--animal-text-body, #725d42); max-width: 520px; margin: 0 auto; line-height: 1.6; }

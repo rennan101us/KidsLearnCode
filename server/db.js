@@ -535,7 +535,22 @@ export class Database {
     return this.state.auth_users.find(u => u.id === id) || null;
   }
 
-  createUser({ email, passwordHash, emailConfirmed = true, confirmationToken = null, tokenExpires = null, isMinor = false, parentEmail = null, nickname = 'Aventureiro', role = 'player' }) {
+  createUser({ 
+    email, 
+    passwordHash, 
+    emailConfirmed = true, 
+    confirmationToken = null, 
+    tokenExpires = null, 
+    isMinor = false, 
+    parentEmail = null, 
+    nickname = 'Aventureiro', 
+    role = 'player',
+    age = null,
+    parentConsent = false,
+    parentVerificationToken = null,
+    parentVerified = false,
+    dailyTimeLimitMinutes = null
+  }) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const cleanNick = (nickname || 'Aventureiro').trim();
@@ -550,8 +565,14 @@ export class Database {
       confirmation_token_expires_at: tokenExpires ? new Date(tokenExpires).toISOString() : null,
       reset_token: null,
       reset_token_expires_at: null,
-      parent_email: parentEmail,
+      parent_email: parentEmail ? parentEmail.toLowerCase().trim() : null,
       is_minor: Boolean(isMinor),
+      age: age ? parseInt(age, 10) : null,
+      parent_consent_given: Boolean(parentConsent),
+      parent_verification_token: parentVerificationToken,
+      parent_verified: Boolean(parentVerified || !isMinor),
+      daily_time_limit_minutes: dailyTimeLimitMinutes || null,
+      playtime_history: {},
       role: role || 'player',
       created_at: now,
       updated_at: now
@@ -611,8 +632,176 @@ export class Database {
     return user;
   }
 
+  // ==========================================
+  // Controle Parental & Proteção ao Menor (ECA)
+  // ==========================================
+
+  getUserByParentToken(token) {
+    if (!token) return null;
+    return this.state.auth_users.find(u => u.parent_verification_token === token) || null;
+  }
+
+  getParentByEmail(email) {
+    if (!email) return null;
+    const clean = String(email).toLowerCase().trim();
+    return this.state.auth_users.find(u => u.email.toLowerCase() === clean && u.role === 'parent') || null;
+  }
+
+  completeParentVerification({ childId, parentName, parentPasswordHash, docType = 'rg', estimatedAge = null }) {
+    const child = this.getUserById(childId);
+    if (!child) return { success: false, error: 'Aventureiro não encontrado.' };
+
+    const now = new Date().toISOString();
+    const parentEmail = (child.parent_email || '').toLowerCase().trim();
+    if (!parentEmail) return { success: false, error: 'E-mail do responsável não associado.' };
+
+    let parentUser = this.getParentByEmail(parentEmail);
+    if (!parentUser) {
+      parentUser = {
+        id: crypto.randomUUID(),
+        email: parentEmail,
+        password_hash: parentPasswordHash,
+        full_name: (parentName || 'Responsável').trim(),
+        role: 'parent',
+        email_confirmed: true,
+        children_ids: [childId],
+        verification_metadata: {
+          doc_type: docType,
+          estimated_age: estimatedAge,
+          verified_at: now,
+          client_side_verified: true
+        },
+        created_at: now,
+        updated_at: now
+      };
+      this.state.auth_users.push(parentUser);
+    } else {
+      if (!Array.isArray(parentUser.children_ids)) parentUser.children_ids = [];
+      if (!parentUser.children_ids.includes(childId)) {
+        parentUser.children_ids.push(childId);
+      }
+      if (parentPasswordHash) parentUser.password_hash = parentPasswordHash;
+      if (parentName) parentUser.full_name = parentName.trim();
+      parentUser.verification_metadata = {
+        doc_type: docType,
+        estimated_age: estimatedAge,
+        verified_at: now,
+        client_side_verified: true
+      };
+      parentUser.updated_at = now;
+    }
+
+    // Libera a conta do filho
+    child.parent_verified = true;
+    child.email_confirmed = true;
+    child.parent_verification_token = null;
+    child.parent_id = parentUser.id;
+    child.updated_at = now;
+
+    this.saveState();
+    return { success: true, parentUser, childUser: child };
+  }
+
+  getParentDashboardData(parentEmail) {
+    if (!parentEmail) return null;
+    const clean = String(parentEmail).toLowerCase().trim();
+    const parent = this.getParentByEmail(clean);
+    
+    // Localiza os filhos tanto pelo parent_email do filho quanto pelo vínculo de children_ids
+    const children = this.state.auth_users.filter(u => 
+      u.role === 'player' && (
+        (u.parent_email && u.parent_email.toLowerCase() === clean) ||
+        (parent && Array.isArray(parent.children_ids) && parent.children_ids.includes(u.id))
+      )
+    );
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const childrenData = children.map(child => {
+      const profile = this.getProfile(child.id) || {};
+      const save = this.getSave(child.id) || {};
+      const coding = save.coding_progress || {};
+      const dragons = save.dragons_data?.party || [];
+      const playtimeHistory = child.playtime_history || {};
+      const minutesPlayedToday = playtimeHistory[todayStr] || 0;
+
+      return {
+        id: child.id,
+        email: child.email,
+        nickname: profile.nickname || 'Aventureiro',
+        heroId: profile.hero_id || 'custom_avatar',
+        level: profile.level || 1,
+        xp: profile.xp || 0,
+        gold: profile.gold || 100,
+        age: child.age || null,
+        parentVerified: Boolean(child.parent_verified),
+        dailyTimeLimitMinutes: child.daily_time_limit_minutes !== undefined ? child.daily_time_limit_minutes : null,
+        minutesPlayedToday,
+        codingProgress: {
+          completedLessons: Array.isArray(coding.completedLessons) ? coding.completedLessons : [],
+          unlockedAssets: Array.isArray(coding.unlockedAssets) ? coding.unlockedAssets : [],
+          unlockedRecipes: Array.isArray(coding.unlockedRecipes) ? coding.unlockedRecipes : [],
+          playerXP: coding.playerXP || 0,
+          playerGold: coding.playerGold || 0
+        },
+        dragons: dragons.map(d => ({
+          id: d.id,
+          name: d.name,
+          level: d.level || 1,
+          element: d.element || 'Neutro',
+          icon: d.icon || 'Dragão'
+        }))
+      };
+    });
+
+    return {
+      parent: parent ? { id: parent.id, email: parent.email, fullName: parent.full_name || 'Responsável' } : null,
+      children: childrenData
+    };
+  }
+
+  updateChildTimeLimit(childId, minutes) {
+    const child = this.getUserById(childId);
+    if (!child) return false;
+    child.daily_time_limit_minutes = (minutes === null || minutes === undefined || minutes === 'unlimited') 
+      ? null 
+      : parseInt(minutes, 10);
+    child.updated_at = new Date().toISOString();
+    this.saveState();
+    return true;
+  }
+
+  recordChildPlaytime(childId, dateStr, minutesToAdd = 1) {
+    const child = this.getUserById(childId);
+    if (!child) return 0;
+    if (!child.playtime_history || typeof child.playtime_history !== 'object') {
+      child.playtime_history = {};
+    }
+    const safeDate = dateStr || new Date().toISOString().split('T')[0];
+    const current = child.playtime_history[safeDate] || 0;
+    child.playtime_history[safeDate] = current + Math.max(0, parseInt(minutesToAdd, 10) || 1);
+    child.updated_at = new Date().toISOString();
+    this.saveState();
+    return child.playtime_history[safeDate];
+  }
+
+  getChildTimeStatus(childId, dateStr) {
+    const child = this.getUserById(childId);
+    if (!child) return null;
+    const safeDate = dateStr || new Date().toISOString().split('T')[0];
+    const minutesPlayed = (child.playtime_history && child.playtime_history[safeDate]) ? child.playtime_history[safeDate] : 0;
+    return {
+      dailyTimeLimitMinutes: child.daily_time_limit_minutes !== undefined ? child.daily_time_limit_minutes : null,
+      minutesPlayedToday: minutesPlayed
+    };
+  }
+
   getProfile(id) {
     return this.state.profiles.find(p => p.id === id) || null;
+  }
+
+  getSave(userId) {
+    return this.state.game_saves.find(s => s.user_id === userId) || null;
   }
 
   upsertProfile(id, data = {}) {

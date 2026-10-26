@@ -3464,6 +3464,73 @@ class RPGApplication {
     }
   }
 
+  // ==========================================
+  // Controle Parental & Tempo de Uso Diário (ECA)
+  // ==========================================
+
+  initPlaytimeController() {
+    this.stopPlaytimeController();
+
+    const user = this.supabaseClient?.user;
+    if (!user || user.isGuest) return;
+
+    // Checa status inicial ao autenticar
+    this.supabaseClient.fetchPlaytimeStatus().then(status => {
+      this.handlePlaytimeCheck(status);
+    }).catch(() => {});
+
+    // Envia heartbeat a cada 60s enquanto a aba estiver visível
+    this._playtimeInterval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      const status = await this.supabaseClient.sendPlaytimeHeartbeat(1);
+      this.handlePlaytimeCheck(status);
+    }, 60 * 1000);
+  }
+
+  handlePlaytimeCheck(status) {
+    if (!status) return;
+
+    const warningEl = document.getElementById('hud-playtime-warning');
+    const limitModal = document.getElementById('modal-playtime-limit');
+
+    // Notificação prévia de 5 minutos restantes
+    if (status.warning5Min && !this._warned5MinToday) {
+      this._warned5MinToday = true;
+      if (warningEl) warningEl.style.display = 'flex';
+      this.soundFX?.playPop?.(1.4);
+    } else if (!status.warning5Min && warningEl) {
+      if (status.remainingMinutes > 5 || status.dailyTimeLimitMinutes === null) {
+        warningEl.style.display = 'none';
+        this._warned5MinToday = false;
+      }
+    }
+
+    // Limite diário esgotado
+    if (status.limitReached) {
+      if (warningEl) warningEl.style.display = 'none';
+      if (limitModal && limitModal.style.display !== 'flex') {
+        limitModal.style.display = 'flex';
+        this.saveGameToStorage(true);
+        if (this.player) {
+          this.player.vx = 0;
+          this.player.vy = 0;
+        }
+      }
+    }
+  }
+
+  stopPlaytimeController() {
+    if (this._playtimeInterval) {
+      clearInterval(this._playtimeInterval);
+      this._playtimeInterval = null;
+    }
+    const warningEl = document.getElementById('hud-playtime-warning');
+    const limitModal = document.getElementById('modal-playtime-limit');
+    if (warningEl) warningEl.style.display = 'none';
+    if (limitModal) limitModal.style.display = 'none';
+    this._warned5MinToday = false;
+  }
+
   setupAuthUI() {
     const modal = document.getElementById('auth-modal');
     const triggerBtn = document.getElementById('btn-cloud-account');
@@ -3491,9 +3558,10 @@ class RPGApplication {
     const iconEyeOpenConfirm = document.getElementById('icon-eye-open-confirm');
     const iconEyeOffConfirm = document.getElementById('icon-eye-off-confirm');
     const ageContainer = document.getElementById('auth-age-verification-container');
-    const over18Checkbox = document.getElementById('auth-over-18');
+    const ageInput = document.getElementById('auth-age-input');
     const parentEmailContainer = document.getElementById('auth-parent-email-container');
     const parentEmailInput = document.getElementById('auth-parent-email');
+    const parentConsentCheckbox = document.getElementById('auth-parent-consent-checkbox');
     const submitBtn = document.getElementById('btn-submit-auth');
     const signoutBtn = document.getElementById('btn-signout-auth');
 
@@ -3609,10 +3677,12 @@ class RPGApplication {
         if (modal) modal.style.display = 'none';
         refreshAuthUI();
         await this.loadGameFromStorage();
+        this.initPlaytimeController();
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
           this.checkAndRunOnboardingOrTutorial(Boolean(this._justSignedUp));
         }
       } else {
+        this.stopPlaytimeController();
         this.tutorialManager?.hideTutorial?.();
         refreshAuthUI();
         this.openAuthModal('login');
@@ -3624,11 +3694,29 @@ class RPGApplication {
     });
 
     headerLogoutBtn?.addEventListener('click', async () => {
+      this.stopPlaytimeController();
       await this.saveGameToStorage(true);
       if (this.supabaseClient) {
         await this.supabaseClient.signOut();
       }
       this.showToast('Você saiu da conta.');
+      this.openAuthModal('login');
+    });
+
+    // Controles de tempo de tela dos pais (dismiss de 5min e saída ao esgotar)
+    document.getElementById('btn-dismiss-playtime-warning')?.addEventListener('click', () => {
+      const w = document.getElementById('hud-playtime-warning');
+      if (w) w.style.display = 'none';
+    });
+
+    document.getElementById('btn-confirm-playtime-exit')?.addEventListener('click', async () => {
+      const limitModal = document.getElementById('modal-playtime-limit');
+      if (limitModal) limitModal.style.display = 'none';
+      this.stopPlaytimeController();
+      await this.saveGameToStorage(true);
+      if (this.supabaseClient) {
+        await this.supabaseClient.signOut();
+      }
       this.openAuthModal('login');
     });
 
@@ -3744,11 +3832,14 @@ class RPGApplication {
       }
     });
 
-    over18Checkbox?.addEventListener('change', () => {
+    const updateAgeVisibility = () => {
+      const val = ageInput ? parseInt(ageInput.value, 10) : NaN;
+      const isMinor = isNaN(val) || val < 18;
       if (parentEmailContainer) {
-        parentEmailContainer.style.display = over18Checkbox.checked ? 'none' : 'flex';
+        parentEmailContainer.style.display = isMinor ? 'flex' : 'none';
       }
-    });
+    };
+    ageInput?.addEventListener('input', updateAgeVisibility);
 
     tabLogin?.addEventListener('click', () => {
       mode = 'login';
@@ -3773,9 +3864,7 @@ class RPGApplication {
       if (ageContainer) ageContainer.style.display = 'flex';
       const forgotExtra = document.getElementById('auth-login-extras');
       if (forgotExtra) forgotExtra.style.display = 'none';
-      if (parentEmailContainer) {
-        parentEmailContainer.style.display = (over18Checkbox && over18Checkbox.checked) ? 'none' : 'flex';
-      }
+      updateAgeVisibility();
       if (submitBtnLabel) submitBtnLabel.innerText = 'Criar Conta';
     });
 
@@ -3802,17 +3891,31 @@ class RPGApplication {
           return;
         }
 
-        const isOver18 = over18Checkbox ? over18Checkbox.checked : false;
+        const ageVal = ageInput ? parseInt(ageInput.value, 10) : NaN;
+        if (isNaN(ageVal) || ageVal < 4 || ageVal > 99) {
+          this.showToast('Por favor, informe uma idade válida (entre 4 e 99 anos).');
+          if (ageInput) ageInput.focus();
+          return;
+        }
+
+        const isMinor = ageVal < 18;
         let parentEmail = '';
-        if (!isOver18) {
+        let parentConsent = false;
+        if (isMinor) {
           parentEmail = parentEmailInput ? parentEmailInput.value.trim() : '';
           const isValidEmail = parentEmail.length > 5 && parentEmail.includes('@') && parentEmail.includes('.');
           if (!isValidEmail) {
             this.showToast('Conforme o ECA, informe um e-mail válido do responsável legal para criar a conta.');
+            if (parentEmailInput) parentEmailInput.focus();
+            return;
+          }
+          parentConsent = parentConsentCheckbox ? parentConsentCheckbox.checked : false;
+          if (!parentConsent) {
+            this.showToast('É necessário marcar a autorização do responsável para realizar atividades na plataforma.');
             return;
           }
         }
-        extraData = { isOver18, parentEmail: isOver18 ? null : parentEmail };
+        extraData = { age: ageVal, isOver18: !isMinor, parentEmail: isMinor ? parentEmail : null, parentConsent };
       }
 
       submitBtn.disabled = true;

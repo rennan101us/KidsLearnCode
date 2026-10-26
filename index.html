@@ -1293,23 +1293,28 @@
             </div>
 
             <!-- Age Verification & Brazilian ECA Compliance (Only on Signup) -->
-            <div id="auth-age-verification-container" style="display: none; flex-direction: column; gap: 8px; margin-top: 4px;">
-              <label class="animal-checkbox-label">
-                <input type="checkbox" id="auth-over-18" class="animal-checkbox-input">
-                <span class="animal-checkbox-custom">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </span>
-                <span class="animal-checkbox-text">Tenho mais de 18 anos</span>
-              </label>
+            <div id="auth-age-verification-container" style="display: none; flex-direction: column; gap: 10px; margin-top: 4px;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label for="auth-age-input" style="font-size: 0.8rem; font-weight: 700; color: var(--animal-text, #794f27);">Sua Idade (em anos)</label>
+                <input type="number" id="auth-age-input" min="4" max="99" placeholder="Informe sua idade (ex: 10)" style="width: 100%; box-sizing: border-box; background: var(--animal-bg, #f8f8f0); color: var(--animal-text, #794f27); border: 2px solid var(--animal-border, #c4b89e); border-radius: 50px; padding: 10px 16px; font-size: 0.9rem; font-weight: 600; outline: none;">
+              </div>
 
-              <!-- Parent Email input (required for minors under ECA) -->
-              <div id="auth-parent-email-container" style="display: flex; flex-direction: column; gap: 4px; padding-left: 2px;">
-                <input type="email" id="auth-parent-email" placeholder="E-mail do Pai / Mãe ou Responsável" style="background: var(--animal-bg, #f8f8f0); color: var(--animal-text, #794f27); border: 2px solid var(--animal-border, #c4b89e); border-radius: 50px; padding: 10px 16px; font-size: 0.88rem; font-weight: 600; outline: none;">
-                <span style="font-size: 0.72rem; color: var(--animal-text-body, #725d42); line-height: 1.3; padding: 0 8px;">
-                  Conforme o ECA (Lei 8.069/90), menores de 18 anos precisam da autorização do responsável legal.
-                </span>
+              <!-- Parent Email and Legal Consent (Conditional for Minors < 18) -->
+              <div id="auth-parent-email-container" style="display: none; flex-direction: column; gap: 8px; background: var(--animal-primary-bg, #e6f9f6); border: 1.5px solid var(--animal-primary, #19c8b9); border-radius: 16px; padding: 12px 14px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label for="auth-parent-email" style="font-size: 0.78rem; font-weight: 800; color: var(--animal-primary-dark, #0f8e83);">E-mail do Pai, Mãe ou Responsável</label>
+                  <input type="email" id="auth-parent-email" placeholder="email-dos-pais@exemplo.com" style="width: 100%; box-sizing: border-box; background: #ffffff; color: var(--animal-text, #794f27); border: 1.5px solid var(--animal-border, #c4b89e); border-radius: 50px; padding: 8px 14px; font-size: 0.86rem; font-weight: 600; outline: none;">
+                </div>
+
+                <label class="animal-checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.76rem; color: var(--animal-text-body, #725d42); cursor: pointer; line-height: 1.4;">
+                  <input type="checkbox" id="auth-parent-consent-checkbox" class="animal-checkbox-input" style="margin-top: 2px;">
+                  <span class="animal-checkbox-custom" style="flex-shrink: 0;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  <span class="animal-checkbox-text">Autorizo meu filho(a) a realizar atividades na plataforma e estou ciente da interação entre ele e outras crianças.</span>
+                </label>
               </div>
             </div>
           </div>
@@ -1371,6 +1376,45 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- HUD: Aviso Prévio de 5 Minutos de Uso Diário -->
+  <div id="hud-playtime-warning" style="display: none; position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 9999; background: var(--animal-bg-card, #fdfbf7); border: 2px solid var(--animal-accent-orange, #ea580c); box-shadow: 0 4px 0 0 var(--animal-accent-orange-dark, #9a3412), 0 8px 24px rgba(0,0,0,0.25); border-radius: 50px; padding: 10px 22px; align-items: center; gap: 12px; pointer-events: auto;">
+    <svg class="ui-icon" style="color: #ea580c; width: 22px; height: 22px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+    <div style="display: flex; flex-direction: column;">
+      <span style="font-size: 0.86rem; font-weight: 800; color: #ea580c;">Aviso dos Pais: Restam 5 minutos de jogo hoje!</span>
+      <span style="font-size: 0.74rem; font-weight: 600; color: var(--animal-text-body, #725d42);">Aproveite para salvar sua jornada ou concluir sua lição.</span>
+    </div>
+    <button type="button" id="btn-dismiss-playtime-warning" aria-label="Fechar aviso" style="background: none; border: none; cursor: pointer; color: var(--animal-text-muted, #8a7b66); padding: 4px; display: flex; align-items: center;">
+      <svg class="ui-icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <!-- Modal: Limite Diário de Tela dos Pais Atingido -->
+  <div id="modal-playtime-limit" class="modal-backdrop" style="display: none; align-items: center; justify-content: center; z-index: 10000; position: fixed; inset: 0; background: rgba(20, 15, 10, 0.7);">
+    <div class="animal-card" style="max-width: 460px; width: 90%; text-align: center; padding: 36px 28px 28px; position: relative; border-radius: 24px; background: #fdfbf7; border: 2px solid #7a583e; box-shadow: 0 6px 0 #5c3c26;">
+      <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #ea580c; color: #fff; font-weight: 800; font-size: 0.84rem; padding: 6px 20px; border-radius: 50px; box-shadow: 0 3px 0 #9a3412; white-space: nowrap;">
+        Tempo de Brincar Concluído
+      </div>
+      <div style="width: 64px; height: 64px; border-radius: 50%; background: #fff7ed; border: 2.5px solid #ea580c; display: flex; align-items: center; justify-content: center; margin: 6px auto 16px; color: #ea580c; box-shadow: 0 4px 0 #fdba74;">
+        <svg viewBox="0 0 24 24" class="ui-icon" style="width: 32px; height: 32px;" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <h3 style="font-family: var(--animal-font-title, 'Cinzel', serif); font-size: 1.35rem; color: var(--animal-text, #794f27); margin: 0 0 10px;">
+        Hora de Descansar os Olhos!
+      </h3>
+      <p style="font-size: 0.95rem; line-height: 1.6; color: var(--animal-text-body, #725d42); margin: 0 0 20px;">
+        Você atingiu o tempo diário configurado pelos seus pais para hoje. Seu progresso foi salvo com todo carinho no servidor. Nos vemos amanhã para mais aventuras na Ilha Lua!
+      </p>
+      <button type="button" id="btn-confirm-playtime-exit" class="btn-equip-tool" style="width: 100%; border-radius: 50px; font-weight: 800; padding: 12px 0; font-size: 0.95rem; cursor: pointer;">
+        <span>Salvar e Sair do Jogo</span>
+      </button>
     </div>
   </div>
 

@@ -143,20 +143,31 @@ export class SupabaseClient {
       let activeUrl = await this.getServerUrl();
       const isMinor = extraData.isOver18 === false;
       const parentEmail = extraData.parentEmail || null;
+      const age = extraData.age !== undefined ? extraData.age : null;
+      const parentConsent = Boolean(extraData.parentConsent);
+      const signupPayload = {
+        email,
+        password,
+        nickname,
+        isOver18: extraData.isOver18 ?? true,
+        parentEmail,
+        age,
+        parentConsent
+      };
 
       let res;
       try {
         res = await fetch(`${activeUrl}/api/auth/signup`, {
           method: 'POST',
           headers: this.getDefaultHeaders(),
-          body: JSON.stringify({ email, password, nickname, isOver18: extraData.isOver18 ?? true, parentEmail })
+          body: JSON.stringify(signupPayload)
         });
       } catch (_) {
         activeUrl = await this.getServerUrl(true);
         res = await fetch(`${activeUrl}/api/auth/signup`, {
           method: 'POST',
           headers: this.getDefaultHeaders(),
-          body: JSON.stringify({ email, password, nickname, isOver18: extraData.isOver18 ?? true, parentEmail })
+          body: JSON.stringify(signupPayload)
         });
       }
 
@@ -214,6 +225,7 @@ export class SupabaseClient {
       const data = await res.json();
       if (res.ok && data.success && data.user) {
         this.profile = data.profile || null;
+        this.playtimeStatus = data.playtimeStatus || null;
         this.user = {
           ...data.user,
           isGuest: false,
@@ -222,12 +234,13 @@ export class SupabaseClient {
         if (typeof localStorage !== 'undefined') {
           if (data.token) localStorage.setItem('kidslearn_auth_token', data.token);
           localStorage.setItem('kidslearn_auth_user', JSON.stringify(this.user));
+          if (data.playtimeStatus) localStorage.setItem('kidslearn_playtime_status', JSON.stringify(data.playtimeStatus));
         }
         if (!this.profile) {
           this.profile = await this.getUserProfile();
         }
-        this.notifyAuthChange('SIGNED_IN', { user: this.user, token: data.token });
-        return { success: true, user: this.user, profile: this.profile };
+        this.notifyAuthChange('SIGNED_IN', { user: this.user, token: data.token, playtimeStatus: this.playtimeStatus });
+        return { success: true, user: this.user, profile: this.profile, playtimeStatus: this.playtimeStatus };
       }
       return { success: false, error: data.error || 'E-mail ou senha incorretos.' };
     } catch (err) {
@@ -236,6 +249,42 @@ export class SupabaseClient {
         error: 'Não foi possível conectar ao servidor dedicado. Verifique se o servidor está online.'
       };
     }
+  }
+
+  // ==========================================
+  // Controle Parental & Tempo de Uso Diário (ECA)
+  // ==========================================
+
+  async sendPlaytimeHeartbeat(minutesToAdd = 1) {
+    try {
+      const activeUrl = await this.getServerUrl();
+      const res = await fetch(`${activeUrl}/api/parent/playtime-heartbeat`, {
+        method: 'POST',
+        headers: this.getDefaultHeaders(),
+        body: JSON.stringify({ minutesToAdd })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.playtimeStatus = data;
+        return data;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  async fetchPlaytimeStatus() {
+    try {
+      const activeUrl = await this.getServerUrl();
+      const res = await fetch(`${activeUrl}/api/parent/child-time-status`, {
+        headers: this.getDefaultHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.playtimeStatus = data;
+        return data;
+      }
+    } catch (_) {}
+    return null;
   }
 
   async resetPassword(email) {

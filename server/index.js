@@ -154,7 +154,7 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.status(503).json({ error: 'O servidor do jogo está em manutenção no momento. Tente novamente em instantes!' });
   }
 
-  const { email, password, nickname, isOver18, parentEmail } = req.body;
+  const { email, password, nickname, isOver18, parentEmail, age, parentConsent } = req.body;
 
   if (!email || !password || password.length < 6) {
     return res.status(400).json({ error: 'E-mail inválido ou senha com menos de 6 caracteres.' });
@@ -162,7 +162,19 @@ app.post('/api/auth/signup', async (req, res) => {
 
   const cleanEmail = email.toLowerCase().trim();
   const cleanNickname = (nickname || 'Aventureiro').trim();
-  const isMinor = isOver18 === false;
+  
+  // Determina se é menor com base no campo idade ou no checkbox legado isOver18
+  const parsedAge = (age !== undefined && age !== null && String(age).trim() !== '') ? parseInt(age, 10) : null;
+  const isMinor = parsedAge !== null ? (parsedAge < 18) : (isOver18 === false);
+
+  if (isMinor) {
+    if (!parentEmail || !parentEmail.includes('@') || !parentEmail.includes('.')) {
+      return res.status(400).json({ error: 'Conforme o ECA, é obrigatório informar um e-mail válido dos pais ou responsável legal.' });
+    }
+    if (parentConsent !== true) {
+      return res.status(400).json({ error: 'É obrigatório autorizar a participação do filho e estar ciente da interação entre crianças.' });
+    }
+  }
 
   try {
     const existing = db.getUserByEmail(cleanEmail);
@@ -172,22 +184,69 @@ app.post('/api/auth/signup', async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
+    
+    // Tokens para ativação / verificação parental
     const confirmationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const parentVerificationToken = isMinor 
+      ? ('pv_' + Math.random().toString(36).substring(2) + Date.now().toString(36) + crypto.randomBytes(6).toString('hex'))
+      : null;
+    const tokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+
+    const cleanParentEmail = parentEmail ? parentEmail.toLowerCase().trim() : null;
 
     const { user: newUser, profile } = db.createUser({
       email: cleanEmail,
       passwordHash,
-      emailConfirmed: !mailer.enabled,
-      confirmationToken,
+      emailConfirmed: isMinor ? false : !mailer.enabled,
+      confirmationToken: isMinor ? null : confirmationToken,
       tokenExpires,
       isMinor,
-      parentEmail: parentEmail || null,
+      age: parsedAge,
+      parentEmail: cleanParentEmail,
+      parentConsent: Boolean(parentConsent),
+      parentVerificationToken,
+      parentVerified: !isMinor,
       nickname: cleanNickname,
       role: 'player'
     });
 
-    addServerLog(`Novo jogador cadastrado: ${cleanNickname} (${cleanEmail})`, 'AUTH');
+    addServerLog(`Novo jogador cadastrado: ${cleanNickname} (${cleanEmail}) [Menor: ${isMinor}]`, 'AUTH');
+
+    // Determina URL pública do servidor para os links de e-mail
+    const host = req.get('host') || 'localhost:8080';
+    const proto = req.protocol || 'http';
+    const currentPublicUrl = `${proto}://${host}`;
+
+    if (isMinor) {
+      const parentLink = `${currentPublicUrl}/parent-portal.html?action=verify&token=${parentVerificationToken}`;
+      console.log(`\n======================================================`);
+      console.log(`[Segurança ECA] Link de Verificação Parental Gerado:`);
+      console.log(`Filho: ${cleanNickname} (${cleanEmail})`);
+      console.log(`Responsável: ${cleanParentEmail}`);
+      console.log(`Link: ${parentLink}`);
+      console.log(`======================================================\n`);
+
+      if (mailer.enabled) {
+        await mailer.sendConfirmationEmail({
+          email: cleanEmail,
+          token: parentVerificationToken,
+          nickname: cleanNickname,
+          isMinor: true,
+          parentEmail: cleanParentEmail,
+          publicUrl: currentPublicUrl
+        });
+      }
+
+      return res.json({
+        success: true,
+        user: { id: newUser.id, email: newUser.email, role: newUser.role, nickname: profile.nickname },
+        requiresConfirmation: true,
+        isMinor: true,
+        parentEmail: cleanParentEmail,
+        verificationLink: !mailer.enabled ? parentLink : undefined,
+        message: `Enviamos a autorização para o responsável em ${cleanParentEmail}. O responsável deve acessar o link para aprovar e definir o tempo diário de jogo!`
+      });
+    }
 
     if (!mailer.enabled) {
       const token = jwt.sign({ id: newUser.id, email: newUser.email, role: newUser.role }, JWT_SECRET, { expiresIn: '30d' });
@@ -205,17 +264,15 @@ app.post('/api/auth/signup', async (req, res) => {
       email: cleanEmail,
       token: confirmationToken,
       nickname: cleanNickname,
-      isMinor,
-      parentEmail
+      isMinor: false,
+      publicUrl: currentPublicUrl
     });
 
     res.json({
       success: true,
       user: { id: newUser.id, email: newUser.email, role: newUser.role, nickname: profile.nickname },
       requiresConfirmation: true,
-      message: isMinor
-        ? `Enviamos a autorização para o responsável em ${parentEmail}. Liberem o acesso clicando no link!`
-        : `Enviamos um e-mail de confirmação para ${cleanEmail}. Confirme para entrar!`
+      message: `Enviamos um e-mail de confirmação para ${cleanEmail}. Confirme para entrar!`
     });
   } catch (err) {
     addServerLog(`Erro no cadastro: ${err.message}`, 'ERROR');
@@ -236,7 +293,7 @@ app.post('/api/auth/signin', async (req, res) => {
   const cleanInput = email.toLowerCase().trim();
 
   try {
-    // Permite login tanto pelo e-mail completo (@gmail.com / alias) quanto pelo nickname (ex: "Rennan" ou "duda")
+    // Permite login tanto pelo e-mail completo quanto pelo nickname
     let user = db.getUserByEmail(cleanInput);
     if (!user) {
       const profByNick = db.state.profiles.find(p => p.nickname.toLowerCase() === cleanInput);
@@ -254,7 +311,7 @@ app.post('/api/auth/signin', async (req, res) => {
       match = await bcrypt.compare(password, user.password_hash);
     }
 
-    // Se a conta foi migrada do backup e o jogador digitou sua senha original (>= 4 caracteres), atualiza e autentica automaticamente
+    // Se a conta foi migrada do backup e o jogador digitou sua senha original (>= 4 caracteres), atualiza
     if (!match && !user.password_confirmed_by_user && String(password).length >= 4) {
       const salt = await bcrypt.genSalt(10);
       const newHash = await bcrypt.hash(String(password), salt);
@@ -262,13 +319,19 @@ app.post('/api/auth/signin', async (req, res) => {
       match = true;
     }
 
-    // Se o jogador informou seu e-mail @gmail.com válido no login, sincroniza o @gmail.com
     if (match && cleanInput.endsWith('@gmail.com') && user.email !== cleanInput) {
       db.updateUser(user.id, { email: cleanInput });
     }
 
     if (!match) {
       return res.status(400).json({ error: 'E-mail ou senha incorretos.' });
+    }
+
+    // Bloqueio amigável se for menor de 18 anos sem aprovação parental
+    if (user.is_minor && !user.parent_verified) {
+      return res.status(403).json({
+        error: `Acesso pendente: O responsável legal precisa concluir a autorização pelo link enviado para ${user.parent_email || 'o e-mail dos pais'}.`
+      });
     }
 
     if (!user.email_confirmed) {
@@ -279,6 +342,8 @@ app.post('/api/auth/signin', async (req, res) => {
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
     const profile = db.getProfile(user.id);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const playtimeStatus = db.getChildTimeStatus(user.id, todayStr);
 
     addServerLog(`Login realizado: ${profile?.nickname || user.email} (${user.email})`, 'AUTH');
 
@@ -289,9 +354,12 @@ app.post('/api/auth/signin', async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
-        nickname: profile?.nickname || 'Aventureiro'
+        nickname: profile?.nickname || 'Aventureiro',
+        isMinor: Boolean(user.is_minor),
+        parentVerified: Boolean(user.parent_verified)
       },
-      profile
+      profile,
+      playtimeStatus
     });
   } catch (err) {
     addServerLog(`Erro no login: ${err.message}`, 'ERROR');
@@ -576,6 +644,178 @@ app.post('/api/auth/update-password', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Erro interno ao redefinir a senha.' });
   }
+});
+
+// ==========================================
+// 1.5. ROTAS DO PORTAL DOS PAIS & CONTROLE PARENTAL (ECA)
+// ==========================================
+
+// Validação do token de autorização dos pais (via link enviado por e-mail)
+app.get('/api/parent/verify-token', (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Token não fornecido.' });
+  const child = db.getUserByParentToken(token);
+  if (!child) return res.status(404).json({ error: 'Link de verificação inválido ou já utilizado.' });
+  const profile = db.getProfile(child.id);
+  res.json({
+    valid: true,
+    childId: child.id,
+    childNickname: profile?.nickname || 'Aventureiro',
+    childEmail: child.email,
+    parentEmail: child.parent_email
+  });
+});
+
+// Conclusão da verificação parental (100% client-side, zero armazenamento de documento no servidor)
+app.post('/api/parent/complete-verification', async (req, res) => {
+  const { token, parentName, password, docType, estimatedAge } = req.body;
+  if (!token) return res.status(400).json({ error: 'Token obrigatório.' });
+  const child = db.getUserByParentToken(token);
+  if (!child) return res.status(404).json({ error: 'Token de verificação inválido ou expirado.' });
+
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: 'Defina uma senha de no mínimo 6 caracteres para acesso futuro ao Painel dos Pais.' });
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const parentPasswordHash = await bcrypt.hash(password, salt);
+
+    const result = db.completeParentVerification({
+      childId: child.id,
+      parentName: parentName || 'Responsável Legal',
+      parentPasswordHash,
+      docType: docType || 'rg',
+      estimatedAge: estimatedAge || null
+    });
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error || 'Falha ao concluir verificação.' });
+    }
+
+    addServerLog(`Verificação parental concluída para filho ${child.email} por ${child.parent_email}`, 'AUTH');
+
+    const parentToken = jwt.sign(
+      { id: result.parentUser.id, email: result.parentUser.email, role: 'parent' },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      parentToken,
+      parent: {
+        id: result.parentUser.id,
+        email: result.parentUser.email,
+        fullName: result.parentUser.full_name
+      },
+      child: {
+        id: child.id,
+        email: child.email,
+        nickname: db.getProfile(child.id)?.nickname || 'Aventureiro'
+      },
+      message: 'OK! Verificação concluída com sucesso! A conta do seu filho está liberada.'
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno ao validar responsável.' });
+  }
+});
+
+// Login do responsável para acesso ao Painel dos Pais
+app.post('/api/parent/signin', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Informe e-mail e senha.' });
+
+  const cleanEmail = email.toLowerCase().trim();
+  const parent = db.getParentByEmail(cleanEmail);
+  if (!parent) return res.status(400).json({ error: 'E-mail de responsável não encontrado. Conclua a autorização pelo link enviado por e-mail.' });
+
+  const match = await bcrypt.compare(password, parent.password_hash || '');
+  if (!match) return res.status(400).json({ error: 'E-mail ou senha incorretos.' });
+
+  const token = jwt.sign(
+    { id: parent.id, email: parent.email, role: 'parent' },
+    JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+
+  res.json({
+    success: true,
+    token,
+    parent: { id: parent.id, email: parent.email, fullName: parent.full_name || 'Responsável' }
+  });
+});
+
+// Dados do Dashboard dos Pais (Acompanhamento Pedagógico + Atividades)
+app.get('/api/parent/dashboard', (req, res) => {
+  if (!req.user || req.user.role !== 'parent') {
+    return res.status(401).json({ error: 'Acesso restrito ao Painel dos Pais.' });
+  }
+  const data = db.getParentDashboardData(req.user.email);
+  if (!data) return res.status(404).json({ error: 'Dados dos pais não encontrados.' });
+  res.json({ success: true, ...data });
+});
+
+// Ajuste do Limite Diário de Tela pelo Responsável (30m, 1h, 2h, 4h, ilimitado)
+app.post('/api/parent/time-limit', (req, res) => {
+  if (!req.user || req.user.role !== 'parent') {
+    return res.status(401).json({ error: 'Acesso restrito ao Painel dos Pais.' });
+  }
+  const { childId, minutes } = req.body;
+  if (!childId) return res.status(400).json({ error: 'ID do aventureiro obrigatório.' });
+
+  const parentData = db.getParentDashboardData(req.user.email);
+  const isChildLinked = parentData?.children?.some(c => c.id === childId);
+  if (!isChildLinked) {
+    return res.status(403).json({ error: 'Você não tem permissão para alterar as configurações deste aventureiro.' });
+  }
+
+  const ok = db.updateChildTimeLimit(childId, minutes);
+  if (!ok) return res.status(500).json({ error: 'Falha ao atualizar limite de tempo.' });
+
+  addServerLog(`Limite diário alterado para ${minutes} min para filho ID ${childId}`, 'PARENT');
+  res.json({ success: true, childId, dailyTimeLimitMinutes: (minutes === 'unlimited' || minutes === null) ? null : parseInt(minutes, 10) });
+});
+
+// Heartbeat de tempo ativo jogado enviado pelo cliente da criança
+app.post('/api/parent/playtime-heartbeat', (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Não autenticado.' });
+  const minutesToAdd = parseInt(req.body.minutesToAdd, 10) || 1;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentTotal = db.recordChildPlaytime(req.user.id, todayStr, minutesToAdd);
+  const status = db.getChildTimeStatus(req.user.id, todayStr);
+
+  const limit = status.dailyTimeLimitMinutes;
+  const limitReached = limit !== null && currentTotal >= limit;
+  const remainingMinutes = limit !== null ? Math.max(0, limit - currentTotal) : null;
+
+  res.json({
+    success: true,
+    minutesPlayedToday: currentTotal,
+    dailyTimeLimitMinutes: limit,
+    remainingMinutes,
+    limitReached,
+    warning5Min: limit !== null && remainingMinutes <= 5 && remainingMinutes > 0
+  });
+});
+
+// Consulta de status de tempo de jogo atual pelo cliente da criança
+app.get('/api/parent/child-time-status', (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Não autenticado.' });
+  const todayStr = new Date().toISOString().split('T')[0];
+  const status = db.getChildTimeStatus(req.user.id, todayStr);
+  if (!status) return res.status(404).json({ error: 'Usuário não encontrado.' });
+  const limit = status.dailyTimeLimitMinutes;
+  const played = status.minutesPlayedToday;
+  const remaining = limit !== null ? Math.max(0, limit - played) : null;
+  res.json({
+    success: true,
+    minutesPlayedToday: played,
+    dailyTimeLimitMinutes: limit,
+    remainingMinutes: remaining,
+    limitReached: limit !== null && played >= limit,
+    warning5Min: limit !== null && remaining <= 5 && remaining > 0
+  });
 });
 
 // ==========================================
