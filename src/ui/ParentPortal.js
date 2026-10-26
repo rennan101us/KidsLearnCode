@@ -12,8 +12,7 @@ export class ParentPortal {
     this.childData = null;
     this.currentStep = 1;
     this.faceScanner = null;
-    this.documentVerified = false;
-    this.facialVerified = false;
+    this.documentVerified = this.facialVerified = false;
     this.estimatedAge = null;
     this.parentToken = localStorage.getItem('kidslearn_parent_token') || null;
     this.dashboardView = new ParentDashboardView(this);
@@ -24,35 +23,40 @@ export class ParentPortal {
   }
 
   initElements() {
-    this.secVerify = document.getElementById('section-verification');
-    this.secLogin = document.getElementById('section-parent-login');
-    this.secDash = document.getElementById('section-dashboard');
-    this.alertBox = document.getElementById('portal-status-alert');
-    this.headerActions = document.getElementById('parent-auth-header-actions');
+    const get = (id) => document.getElementById(id);
+    this.secVerify = get('section-verification');
+    this.secLogin = get('section-parent-login');
+    this.secDash = get('section-dashboard');
+    this.alertBox = get('portal-status-alert');
+    this.headerActions = get('parent-auth-header-actions');
 
-    this.step1 = document.getElementById('verify-step-1');
-    this.step2 = document.getElementById('verify-step-2');
-    this.step3 = document.getElementById('verify-step-3');
-    this.stepSuccess = document.getElementById('verify-step-success');
-    this.stepIndicator = document.getElementById('verification-step-indicator');
+    this.step1 = get('verify-step-1');
+    this.step2 = get('verify-step-2');
+    this.step3 = get('verify-step-3');
+    this.stepSuccess = get('verify-step-success');
+    this.stepIndicator = get('verification-step-indicator');
 
-    this.inputName = document.getElementById('parent-full-name');
-    this.inputDocType = document.getElementById('parent-doc-type');
-    this.inputPass = document.getElementById('parent-new-password');
-    this.btnStep2 = document.getElementById('btn-goto-step-2');
-    this.btnBackStep1 = document.getElementById('btn-back-to-step-1');
-    this.btnStep3 = document.getElementById('btn-goto-step-3');
-    this.btnBackStep2 = document.getElementById('btn-back-to-step-2');
-    this.btnConfirm = document.getElementById('btn-confirm-verification');
-    this.btnOpenDash = document.getElementById('btn-open-dashboard');
+    this.inputName = get('parent-full-name');
+    this.inputDocType = get('parent-doc-type');
+    this.inputPass = get('parent-new-password');
+    this.btnStep2 = get('btn-goto-step-2');
+    this.btnBackStep1 = get('btn-back-to-step-1');
+    this.btnStep3 = get('btn-goto-step-3');
+    this.btnBackStep2 = get('btn-back-to-step-2');
+    this.btnConfirm = get('btn-confirm-verification');
+    this.btnOpenDash = get('btn-open-dashboard');
 
-    this.docFileInput = document.getElementById('doc-file-input');
-    this.docPreviewWrapper = document.getElementById('doc-preview-wrapper');
-    this.docCanvas = document.getElementById('doc-preview-canvas');
+    this.docFileInput = get('doc-file-input');
+    this.docPreviewWrapper = get('doc-preview-wrapper');
+    this.docCanvas = get('doc-preview-canvas');
 
-    this.video = document.getElementById('camera-stream');
-    this.guide = document.getElementById('face-oval-guide');
-    this.feedback = document.getElementById('camera-feedback-badge');
+    this.video = get('camera-stream');
+    this.guide = get('face-oval-guide');
+    this.feedback = get('camera-feedback-badge');
+
+    if (this.video) {
+      this.faceScanner = new ParentFaceScanner(this.video, this.guide, this.feedback);
+    }
   }
 
   bindEvents() {
@@ -84,11 +88,8 @@ export class ParentPortal {
 
   detectRoute() {
     const params = new URLSearchParams(window.location.search);
-    const action = params.get('action');
-    const token = params.get('token');
-
-    if (action === 'verify' && token) {
-      this.token = token;
+    if (params.get('action') === 'verify' && params.get('token')) {
+      this.token = params.get('token');
       this.startVerificationFlow();
     } else if (this.parentToken) {
       this.loadDashboard();
@@ -147,7 +148,9 @@ export class ParentPortal {
   handleStep2Submit() {
     if (!this.documentVerified) return alert('Selecione ou tire a foto do documento.');
     this.showStep(3);
-    this.faceScanner = new ParentFaceScanner(this.video, this.guide, this.feedback);
+    if (!this.faceScanner) {
+      this.faceScanner = new ParentFaceScanner(this.video, this.guide, this.feedback);
+    }
     this.faceScanner.startCamera((result) => {
       this.facialVerified = result.faceDetected;
       this.estimatedAge = result.estimatedAge;
@@ -243,26 +246,22 @@ export class ParentPortal {
 
   showStep(step) {
     this.currentStep = step;
-    if (this.step1) this.step1.style.display = step === 1 ? 'block' : 'none';
-    if (this.step2) this.step2.style.display = step === 2 ? 'block' : 'none';
-    if (this.step3) this.step3.style.display = step === 3 ? 'block' : 'none';
-    if (this.stepSuccess) this.stepSuccess.style.display = step === 'success' ? 'block' : 'none';
-
-    if (this.stepIndicator) {
-      const titles = {
-        1: 'Etapa 1 de 3: Identificação do Responsável',
-        2: 'Etapa 2 de 3: Conferência Privada de Documento',
-        3: 'Etapa 3 de 3: Reconhecimento Facial',
-        success: 'Verificação Concluída'
-      };
-      this.stepIndicator.innerText = titles[step] || '';
-    }
+    [this.step1, this.step2, this.step3, this.stepSuccess].forEach((el, idx) => {
+      if (el) el.style.display = (step === (idx === 3 ? 'success' : idx + 1)) ? 'block' : 'none';
+    });
+    const titles = {
+      1: 'Etapa 1 de 3: Identificação do Responsável',
+      2: 'Etapa 2 de 3: Conferência Privada de Documento',
+      3: 'Etapa 3 de 3: Reconhecimento Facial',
+      success: 'Verificação Concluída'
+    };
+    if (this.stepIndicator) this.stepIndicator.innerText = titles[step] || '';
   }
 
   showSection(section) {
-    if (this.secVerify) this.secVerify.style.display = section === 'verify' ? 'block' : 'none';
-    if (this.secLogin) this.secLogin.style.display = section === 'login' ? 'block' : 'none';
-    if (this.secDash) this.secDash.style.display = section === 'dashboard' ? 'block' : 'none';
+    [this.secVerify, this.secLogin, this.secDash].forEach((el, i) => {
+      if (el) el.style.display = section === ['verify', 'login', 'dashboard'][i] ? 'block' : 'none';
+    });
   }
 
   showLoginView() {
