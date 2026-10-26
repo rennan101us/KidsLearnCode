@@ -1,4 +1,14 @@
 /* KidsLearnCode — Parent Portal (Animal Island UI Standard) */
+html:has(.parent-portal-body),
+body.parent-portal-body {
+  height: auto !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
 .parent-portal-body {
   background-color: var(--animal-bg, #f8f8f0);
   background-image: radial-gradient(#e5dec9 1.2px, transparent 1.2px);
@@ -7,16 +17,18 @@
   font-family: var(--animal-font, 'Nunito', 'Outfit', sans-serif);
   min-height: 100vh;
   margin: 0;
-  padding: 24px 16px;
+  padding: 24px 16px 80px;
   box-sizing: border-box;
 }
 
 .parent-portal-container {
   max-width: 980px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-sizing: border-box;
 }
 
 /* Header */
@@ -122,15 +134,97 @@
 .portal-upload-label:hover { border-color: var(--animal-primary, #19c8b9); background: var(--animal-primary-bg, #e6f9f6); }
 .upload-icon { width: 34px; height: 34px; color: var(--animal-text-muted, #8a7b66); }
 .portal-upload-subtext { font-size: 0.78rem; color: var(--animal-text-muted, #8a7b66); }
-.doc-preview-wrapper { margin-top: 16px; text-align: center; }
+.doc-preview-wrapper {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
 .doc-preview-canvas {
-  max-width: 100%; max-height: 260px; border-radius: 14px;
-  border: 2px solid var(--animal-border, #c4b89e); box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 14px;
+  border: 2px solid var(--animal-border, #c4b89e);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  object-fit: contain;
 }
 .doc-validation-badge {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
-  background: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: 50px;
-  padding: 6px 16px; font-size: 0.85rem; font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #dcfce7;
+  color: #166534;
+  border: 1.5px solid #86efac;
+  border-radius: 50px;
+  padding: 8px 18px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  max-width: 100%;
+  line-height: 1.4;
+  box-sizing: border-box;
+  text-align: center;
+}
+.doc-validation-badge.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+.doc-validation-badge.analyzing {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #7dd3fc;
+}
+
+/* Mobile & Touch Responsiveness */
+@media (max-width: 640px) {
+  .parent-portal-body {
+    padding: 12px 10px 60px;
+  }
+  .parent-header {
+    padding: 10px 16px;
+    border-radius: 20px;
+  }
+  .parent-title {
+    font-size: 1.15rem;
+  }
+  .portal-card {
+    padding: 26px 14px 20px;
+    border-radius: 20px;
+  }
+  .portal-ribbon {
+    left: 14px;
+    top: -12px;
+    font-size: 0.74rem;
+    padding: 4px 12px;
+  }
+  .portal-step-title {
+    font-size: 1.15rem;
+  }
+  .portal-step-desc {
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+  }
+  .doc-preview-canvas {
+    max-height: 200px;
+    width: 100%;
+  }
+  .portal-btn-row {
+    flex-direction: column-reverse;
+    gap: 10px;
+    width: 100%;
+    margin-top: 18px;
+  }
+  .portal-btn {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 16px;
+  }
+  .camera-scanner-container {
+    height: 260px;
+    max-width: 100%;
+  }
 }
 
 /* Camera Scanner */

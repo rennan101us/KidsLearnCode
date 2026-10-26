@@ -5,6 +5,7 @@
 
 import { ParentFaceScanner } from './ParentFaceScanner.js';
 import { ParentDashboardView } from './ParentDashboardView.js';
+import { ParentDocumentVerifier } from './ParentDocumentVerifier.js';
 
 export class ParentPortal {
   constructor() {
@@ -16,6 +17,7 @@ export class ParentPortal {
     this.estimatedAge = null;
     this.parentToken = localStorage.getItem('kidslearn_parent_token') || null;
     this.dashboardView = new ParentDashboardView(this);
+    this.docVerifier = new ParentDocumentVerifier();
 
     this.initElements();
     this.bindEvents();
@@ -39,16 +41,10 @@ export class ParentPortal {
     this.inputName = get('parent-full-name');
     this.inputDocType = get('parent-doc-type');
     this.inputPass = get('parent-new-password');
-    this.btnStep2 = get('btn-goto-step-2');
-    this.btnBackStep1 = get('btn-back-to-step-1');
-    this.btnStep3 = get('btn-goto-step-3');
-    this.btnBackStep2 = get('btn-back-to-step-2');
-    this.btnConfirm = get('btn-confirm-verification');
-    this.btnOpenDash = get('btn-open-dashboard');
-
-    this.docFileInput = get('doc-file-input');
-    this.docPreviewWrapper = get('doc-preview-wrapper');
-    this.docCanvas = get('doc-preview-canvas');
+    [this.btnStep2, this.btnBackStep1, this.btnStep3, this.btnBackStep2, this.btnConfirm, this.btnOpenDash] =
+      ['btn-goto-step-2', 'btn-back-to-step-1', 'btn-goto-step-3', 'btn-back-to-step-2', 'btn-confirm-verification', 'btn-open-dashboard'].map(get);
+    [this.docFileInput, this.docPreviewWrapper, this.docCanvas, this.docBadge, this.docBadgeText, this.docBadgeIcon] =
+      ['doc-file-input', 'doc-preview-wrapper', 'doc-preview-canvas', 'doc-validation-badge', 'doc-validation-text', 'doc-validation-icon'].map(get);
 
     this.video = get('camera-stream');
     this.guide = get('face-oval-guide');
@@ -129,16 +125,21 @@ export class ParentPortal {
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, 500 / img.width);
+      img.onload = async () => {
+        const scale = Math.min(1, 600 / img.width);
         this.docCanvas.width = img.width * scale;
         this.docCanvas.height = img.height * scale;
-        const ctx = this.docCanvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, this.docCanvas.width, this.docCanvas.height);
+        this.docCanvas.getContext('2d').drawImage(img, 0, 0, this.docCanvas.width, this.docCanvas.height);
 
-        this.documentVerified = true;
-        if (this.docPreviewWrapper) this.docPreviewWrapper.style.display = 'block';
-        if (this.btnStep3) this.btnStep3.disabled = false;
+        if (this.docPreviewWrapper) this.docPreviewWrapper.style.display = 'flex';
+
+        const res = await this.docVerifier.verifyAndRender(this.docCanvas, this.inputDocType?.value || 'cnh', {
+          badgeEl: this.docBadge,
+          textEl: this.docBadgeText,
+          iconEl: this.docBadgeIcon,
+          btnProceed: this.btnStep3
+        });
+        this.documentVerified = res.isValid;
       };
       img.src = event.target.result;
     };
@@ -146,7 +147,7 @@ export class ParentPortal {
   }
 
   handleStep2Submit() {
-    if (!this.documentVerified) return alert('Selecione ou tire a foto do documento.');
+    if (!this.documentVerified) return alert('É necessário que o documento seja válido para prosseguir.');
     this.showStep(3);
     if (!this.faceScanner) {
       this.faceScanner = new ParentFaceScanner(this.video, this.guide, this.feedback);
@@ -249,12 +250,7 @@ export class ParentPortal {
     [this.step1, this.step2, this.step3, this.stepSuccess].forEach((el, idx) => {
       if (el) el.style.display = (step === (idx === 3 ? 'success' : idx + 1)) ? 'block' : 'none';
     });
-    const titles = {
-      1: 'Etapa 1 de 3: Identificação do Responsável',
-      2: 'Etapa 2 de 3: Conferência Privada de Documento',
-      3: 'Etapa 3 de 3: Reconhecimento Facial',
-      success: 'Verificação Concluída'
-    };
+    const titles = { 1: 'Etapa 1 de 3: Identificação do Responsável', 2: 'Etapa 2 de 3: Conferência Privada de Documento', 3: 'Etapa 3 de 3: Reconhecimento Facial', success: 'Verificação Concluída' };
     if (this.stepIndicator) this.stepIndicator.innerText = titles[step] || '';
   }
 
@@ -271,11 +267,7 @@ export class ParentPortal {
 
   renderHeaderUser() {
     if (!this.headerActions) return;
-    this.headerActions.innerHTML = `
-      <button type="button" id="btn-parent-logout" class="portal-btn portal-btn-wood" style="padding: 8px 20px; font-size: 0.82rem;">
-        Sair
-      </button>
-    `;
+    this.headerActions.innerHTML = `<button type="button" id="btn-parent-logout" class="portal-btn portal-btn-wood" style="padding: 8px 20px; font-size: 0.82rem;">Sair</button>`;
     document.getElementById('btn-parent-logout')?.addEventListener('click', () => {
       localStorage.removeItem('kidslearn_parent_token');
       this.parentToken = null;
@@ -284,10 +276,11 @@ export class ParentPortal {
   }
 
   showAlert(message, type = 'info') {
-    if (!this.alertBox) return;
-    this.alertBox.style.display = 'block';
-    this.alertBox.innerText = message;
-    this.alertBox.className = `portal-alert alert-${type}`;
+    if (this.alertBox) {
+      this.alertBox.style.display = 'block';
+      this.alertBox.innerText = message;
+      this.alertBox.className = `portal-alert alert-${type}`;
+    }
   }
 }
 

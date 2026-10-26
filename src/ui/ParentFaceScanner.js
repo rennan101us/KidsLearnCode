@@ -33,6 +33,7 @@ export class ParentFaceScanner {
       } catch (_) {}
     }
 
+    if (typeof window === 'undefined') return;
     try {
       const res = await fetch('/assets/models/facefinder');
       if (res.ok) {
