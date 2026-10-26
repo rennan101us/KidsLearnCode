@@ -546,6 +546,7 @@ export class Database {
     nickname = 'Aventureiro', 
     role = 'player',
     age = null,
+    birthDate = null,
     parentConsent = false,
     parentVerificationToken = null,
     parentVerified = false,
@@ -555,6 +556,10 @@ export class Database {
     const now = new Date().toISOString();
     const cleanNick = (nickname || 'Aventureiro').trim();
     const defaultAvatar = this.createDefaultCustomAvatar(cleanNick);
+
+    const actualParentToken = (isMinor && !parentVerificationToken)
+      ? ('pv_' + Math.random().toString(36).substring(2) + Date.now().toString(36) + crypto.randomBytes(6).toString('hex'))
+      : parentVerificationToken;
 
     const newUser = {
       id,
@@ -568,8 +573,9 @@ export class Database {
       parent_email: parentEmail ? parentEmail.toLowerCase().trim() : null,
       is_minor: Boolean(isMinor),
       age: age ? parseInt(age, 10) : null,
+      birth_date: birthDate || null,
       parent_consent_given: Boolean(parentConsent),
-      parent_verification_token: parentVerificationToken,
+      parent_verification_token: actualParentToken,
       parent_verified: Boolean(parentVerified || !isMinor),
       daily_time_limit_minutes: dailyTimeLimitMinutes || null,
       playtime_history: {},
@@ -790,9 +796,16 @@ export class Database {
     if (!child) return null;
     const safeDate = dateStr || new Date().toISOString().split('T')[0];
     const minutesPlayed = (child.playtime_history && child.playtime_history[safeDate]) ? child.playtime_history[safeDate] : 0;
+    const limit = (child.daily_time_limit_minutes !== undefined) ? child.daily_time_limit_minutes : null;
+    const remainingMinutes = limit !== null ? Math.max(0, limit - minutesPlayed) : null;
+    const limitReached = limit !== null && minutesPlayed >= limit;
+    const warning5Min = limit !== null && remainingMinutes <= 5 && remainingMinutes > 0;
     return {
-      dailyTimeLimitMinutes: child.daily_time_limit_minutes !== undefined ? child.daily_time_limit_minutes : null,
-      minutesPlayedToday: minutesPlayed
+      dailyTimeLimitMinutes: limit,
+      minutesPlayedToday: minutesPlayed,
+      remainingMinutes,
+      limitReached,
+      warning5Min
     };
   }
 

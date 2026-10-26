@@ -154,7 +154,7 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.status(503).json({ error: 'O servidor do jogo está em manutenção no momento. Tente novamente em instantes!' });
   }
 
-  const { email, password, nickname, isOver18, parentEmail, age, parentConsent } = req.body;
+  const { email, password, nickname, isOver18, parentEmail, age, birthDate, parentConsent } = req.body;
 
   if (!email || !password || password.length < 6) {
     return res.status(400).json({ error: 'E-mail inválido ou senha com menos de 6 caracteres.' });
@@ -202,6 +202,7 @@ app.post('/api/auth/signup', async (req, res) => {
       tokenExpires,
       isMinor,
       age: parsedAge,
+      birthDate: birthDate || null,
       parentEmail: cleanParentEmail,
       parentConsent: Boolean(parentConsent),
       parentVerificationToken,

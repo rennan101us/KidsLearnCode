@@ -144,6 +144,7 @@ export class SupabaseClient {
       const isMinor = extraData.isOver18 === false;
       const parentEmail = extraData.parentEmail || null;
       const age = extraData.age !== undefined ? extraData.age : null;
+      const birthDate = extraData.birthDate || null;
       const parentConsent = Boolean(extraData.parentConsent);
       const signupPayload = {
         email,
@@ -152,6 +153,7 @@ export class SupabaseClient {
         isOver18: extraData.isOver18 ?? true,
         parentEmail,
         age,
+        birthDate,
         parentConsent
       };
 

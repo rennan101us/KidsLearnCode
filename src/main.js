@@ -26,6 +26,7 @@ import { PerformanceController } from './engine/PerformanceController.js';
 import { TallGrassSystem } from './engine/TallGrassSystem.js';
 import { CloudShadowsOverlay } from './engine/CloudShadowsOverlay.js';
 import { VFXSettingsController } from './engine/VFXSettingsController.js';
+import { AnimalIslandDatePicker, calculateAgeFromDate } from './ui/AnimalIslandDatePicker.js';
 
 class RPGApplication {
   constructor() {
@@ -3558,7 +3559,9 @@ class RPGApplication {
     const iconEyeOpenConfirm = document.getElementById('icon-eye-open-confirm');
     const iconEyeOffConfirm = document.getElementById('icon-eye-off-confirm');
     const ageContainer = document.getElementById('auth-age-verification-container');
-    const ageInput = document.getElementById('auth-age-input');
+    const birthdateInput = document.getElementById('auth-birthdate-input');
+    const btnOpenDatePicker = document.getElementById('btn-open-datepicker');
+    const ageCalcBadge = document.getElementById('auth-age-calc-badge');
     const parentEmailContainer = document.getElementById('auth-parent-email-container');
     const parentEmailInput = document.getElementById('auth-parent-email');
     const parentConsentCheckbox = document.getElementById('auth-parent-consent-checkbox');
@@ -3607,6 +3610,8 @@ class RPGApplication {
     const userEmailEl = document.getElementById('auth-user-email');
 
     let mode = 'login'; // 'login' or 'signup'
+    let calculatedAge = null;
+    let calculatedDateStr = '';
 
     const refreshAuthUI = () => {
       const user = this.supabaseClient.user;
@@ -3650,6 +3655,10 @@ class RPGApplication {
       }
       if (passwordInput) passwordInput.value = '';
       if (confirmPasswordInput) confirmPasswordInput.value = '';
+      if (birthdateInput) birthdateInput.value = '';
+      if (ageCalcBadge) ageCalcBadge.style.display = 'none';
+      calculatedAge = null;
+      calculatedDateStr = '';
       resetPasswordVisibility();
       if (modal) modal.style.display = 'flex';
       refreshAuthUI();
@@ -3833,13 +3842,36 @@ class RPGApplication {
     });
 
     const updateAgeVisibility = () => {
-      const val = ageInput ? parseInt(ageInput.value, 10) : NaN;
-      const isMinor = isNaN(val) || val < 18;
+      const isMinor = calculatedAge === null || calculatedAge < 18;
       if (parentEmailContainer) {
         parentEmailContainer.style.display = isMinor ? 'flex' : 'none';
       }
     };
-    ageInput?.addEventListener('input', updateAgeVisibility);
+
+    if (birthdateInput && btnOpenDatePicker) {
+      this.birthDatePicker = new AnimalIslandDatePicker({
+        inputElement: birthdateInput,
+        triggerButton: btnOpenDatePicker,
+        onDateChange: ({ isValid, age, dateStr }) => {
+          if (isValid && age !== null && age >= 0 && age <= 120) {
+            calculatedAge = age;
+            calculatedDateStr = dateStr;
+            if (ageCalcBadge) {
+              ageCalcBadge.innerText = `${age} ${age === 1 ? 'ano' : 'anos'}`;
+              ageCalcBadge.style.display = 'inline-block';
+            }
+            updateAgeVisibility();
+          } else {
+            calculatedAge = null;
+            calculatedDateStr = '';
+            if (ageCalcBadge) {
+              ageCalcBadge.style.display = 'none';
+            }
+            updateAgeVisibility();
+          }
+        }
+      });
+    }
 
     tabLogin?.addEventListener('click', () => {
       mode = 'login';
@@ -3891,14 +3923,13 @@ class RPGApplication {
           return;
         }
 
-        const ageVal = ageInput ? parseInt(ageInput.value, 10) : NaN;
-        if (isNaN(ageVal) || ageVal < 4 || ageVal > 99) {
-          this.showToast('Por favor, informe uma idade válida (entre 4 e 99 anos).');
-          if (ageInput) ageInput.focus();
+        if (calculatedAge === null || calculatedAge < 4 || calculatedAge > 120) {
+          this.showToast('Por favor, informe uma data de nascimento válida no calendário ou digite dia/mês/ano.');
+          if (birthdateInput) birthdateInput.focus();
           return;
         }
 
-        const isMinor = ageVal < 18;
+        const isMinor = calculatedAge < 18;
         let parentEmail = '';
         let parentConsent = false;
         if (isMinor) {
@@ -3915,7 +3946,7 @@ class RPGApplication {
             return;
           }
         }
-        extraData = { age: ageVal, isOver18: !isMinor, parentEmail: isMinor ? parentEmail : null, parentConsent };
+        extraData = { age: calculatedAge, birthDate: calculatedDateStr, isOver18: !isMinor, parentEmail: isMinor ? parentEmail : null, parentConsent };
       }
 
       submitBtn.disabled = true;
