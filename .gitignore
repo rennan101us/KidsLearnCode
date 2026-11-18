@@ -47,3 +47,4 @@ server/db/backups/
 server/active_tunnel.txt
 server/live-server.json
 
+.env*
