@@ -92,7 +92,7 @@ async function fetchLiveServerRegistry(now) {
   // 1. GitHub Contents API (0 segundos de cache de CDN, resposta imediata)
   try {
     const apiRes = await fetch(
-      `https://api.github.com/repos/rennan101/KidsLearnCode/contents/live-server.json?ref=server-status&t=${now}`,
+      `https://api.github.com/repos/rennan101us/KidsLearnCode/contents/live-server.json?ref=server-status&t=${now}`,
       { cache: 'no-store' }
     );
     if (apiRes.ok) {
@@ -107,7 +107,7 @@ async function fetchLiveServerRegistry(now) {
   // 2. Fallback: GitHub Raw
   try {
     const rawRes = await fetch(
-      `https://raw.githubusercontent.com/rennan101/KidsLearnCode/server-status/live-server.json?t=${now}`,
+      `https://raw.githubusercontent.com/rennan101us/KidsLearnCode/server-status/live-server.json?t=${now}`,
       { cache: 'no-store' }
     );
     if (rawRes.ok) {
